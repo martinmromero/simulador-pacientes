@@ -1,0 +1,109 @@
+services:
+  # Base de datos PostgreSQL
+  database:
+    image: postgres:14-alpine
+    container_name: simulador_db
+    environment:
+      POSTGRES_DB: simulador_pacientes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_secure_password}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - simulador_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Backend API (Node.js/Express)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: simulador_backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: simulador_pacientes
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres_secure_password}
+      SESSION_SECRET: ${SESSION_SECRET:-change-this-in-production}
+      AI_ENGINE_URL: http://ai-engine:5000
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks:
+      - simulador_network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend (Nginx sirviendo archivos estáticos)
+  frontend:
+    image: nginx:alpine
+    container_name: simulador_frontend
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    networks:
+      - simulador_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Motor de IA (preparado para futuro)
+  ai-engine:
+    build:
+      context: ./ai-engine
+      dockerfile: Dockerfile
+    container_name: simulador_ai
+    environment:
+      MODEL_PATH: /models
+      API_PORT: 5000
+    volumes:
+      - ai_models:/models
+      - ./ai-engine:/app
+    ports:
+      - "5000:5000"
+    networks:
+      - simulador_network
+    # Descomentar cuando se implemente
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    restart: unless-stopped
+    profiles:
+      - ai  # Solo se inicia si se especifica --profile ai
+
+networks:
+  simulador_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  ai_models:
+    driver: local

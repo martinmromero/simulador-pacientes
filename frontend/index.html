@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Pacientes Virtuales - Universidad</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/avatar.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <h1>🏥 Simulador de Pacientes Virtuales</h1>
+      <div class="user-info">
+        <span id="username">Estudiante</span>
+        <button id="logout-btn" class="btn-secondary">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Selector de Casos -->
+  <section id="case-selector" class="section">
+    <div class="container">
+      <h2>Selecciona un Caso Clínico</h2>
+      <div id="cases-grid" class="cases-grid">
+        <!-- Se llenará dinámicamente -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Sala de Entrevista -->
+  <section id="interview-room" class="section hidden">
+    <div class="container-fluid">
+      
+      <!-- Panel Principal -->
+      <div class="interview-layout">
+        
+        <!-- Panel Izquierdo: Avatar del Paciente -->
+        <div class="avatar-panel">
+          <div id="patient-avatar" class="avatar-container">
+            <!-- Avatar visual del paciente -->
+            <div class="avatar-visual">
+              <div class="avatar-head">
+                <div class="avatar-face">
+                  <div class="avatar-eyes">
+                    <div class="eye left"></div>
+                    <div class="eye right"></div>
+                  </div>
+                  <div class="avatar-mouth" id="avatar-mouth"></div>
+                </div>
+              </div>
+              <div class="avatar-body"></div>
+            </div>
+            
+            <!-- Indicadores de estado -->
+            <div class="avatar-status">
+              <div class="emotion-indicator" id="emotion">
+                <span class="label">Estado:</span>
+                <span id="emotion-text">Neutral</span>
+              </div>
+              <div class="speaking-indicator hidden" id="speaking-indicator">
+                <span class="pulse"></span> Hablando...
+              </div>
+            </div>
+          </div>
+          
+          <!-- Info del Paciente -->
+          <div class="patient-info">
+            <h3 id="patient-name">Nombre del Paciente</h3>
+            <p id="patient-details">Edad • Ocupación</p>
+            <p class="consultation-reason" id="consultation-reason"></p>
+          </div>
+        </div>
+
+        <!-- Panel Central: Conversación -->
+        <div class="conversation-panel">
+          
+          <!-- Historial de Chat -->
+          <div id="chat-container" class="chat-container">
+            <div id="chat-messages" class="chat-messages">
+              <!-- Los mensajes se agregarán aquí -->
+            </div>
+          </div>
+
+          <!-- Controles de Entrada -->
+          <div class="input-controls">
+            
+            <!-- Área de texto -->
+            <div class="input-group">
+              <textarea 
+                id="message-input" 
+                class="message-input" 
+                placeholder="Escribe tu pregunta o comentario..."
+                rows="3"
+              ></textarea>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="action-buttons">
+              <button id="voice-btn" class="btn-voice" title="Hablar con micrófono">
+                <span class="icon">🎤</span>
+                <span class="text">Voz</span>
+              </button>
+              
+              <button id="send-btn" class="btn-primary">
+                <span class="icon">📤</span>
+                <span class="text">Enviar</span>
+              </button>
+            </div>
+
+            <!-- Modo de comunicación -->
+            <div class="communication-mode">
+              <label class="toggle-label">
+                <input type="checkbox" id="audio-response-toggle" checked>
+                <span class="toggle-slider"></span>
+                <span class="toggle-text">Respuestas por audio</span>
+              </label>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Panel Derecho: Notas y Herramientas -->
+        <div class="tools-panel">
+          
+          <div class="session-info">
+            <h4>Sesión Actual</h4>
+            <p>Tiempo: <span id="session-time">00:00</span></p>
+            <p>Mensajes: <span id="message-count">0</span></p>
+          </div>
+
+          <div class="notes-section">
+            <h4>Notas de la Entrevista</h4>
+            <textarea 
+              id="student-notes" 
+              class="student-notes" 
+              placeholder="Escribe tus observaciones, impresiones diagnósticas, preguntas para supervisión..."
+            ></textarea>
+          </div>
+
+          <div class="session-controls">
+            <button id="pause-session-btn" class="btn-secondary">⏸️ Pausar</button>
+            <button id="end-session-btn" class="btn-danger">🔚 Finalizar Entrevista</button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Modal de Fin de Sesión -->
+  <div id="end-session-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Finalizar Entrevista</h3>
+      <p>¿Estás seguro de que deseas finalizar esta sesión?</p>
+      
+      <div class="self-evaluation">
+        <h4>Autoevaluación (opcional)</h4>
+        <label>
+          ¿Cómo evaluarías tu desempeño?
+          <select id="self-rating">
+            <option value="">Selecciona...</option>
+            <option value="5">Excelente</option>
+            <option value="4">Muy bien</option>
+            <option value="3">Bien</option>
+            <option value="2">Regular</option>
+            <option value="1">Necesito mejorar</option>
+          </select>
+        </label>
+        
+        <label>
+          Comentarios adicionales:
+          <textarea id="self-comments" rows="3" placeholder="¿Qué aprendiste? ¿Qué harías diferente?"></textarea>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button id="cancel-end-btn" class="btn-secondary">Cancelar</button>
+        <button id="confirm-end-btn" class="btn-primary">Confirmar y Finalizar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/avatar.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+/* Avatar Styles */
+
+.avatar-container {
+  position: relative;
+  width: 100%;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatar-visual {
+  position: relative;
+  width: 200px;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Cabeza del Avatar */
+.avatar-head {
+  width: 150px;
+  height: 180px;
+  background: linear-gradient(135deg, #ffd6a5 0%, #ffb88c 100%);
+  border-radius: 50% 50% 45% 45%;
+  position: relative;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  margin-bottom: 10px;
+}
+
+.avatar-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+}
+
+/* Ojos */
+.avatar-eyes {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 40px;
+  margin-bottom: 30px;
+}
+
+.eye {
+  width: 25px;
+  height: 25px;
+  background: white;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.eye::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #2c3e50;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: blink 4s infinite;
+}
+
+.eye::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: white;
+  border-radius: 50%;
+  top: 30%;
+  left: 30%;
+}
+
+@keyframes blink {
+  0%, 48%, 52%, 100% {
+    transform: translate(-50%, -50%) scaleY(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scaleY(0.1);
+  }
+}
+
+/* Boca */
+.avatar-mouth {
+  width: 40px;
+  height: 20px;
+  border: 3px solid #c97a5c;
+  border-top: none;
+  border-radius: 0 0 40px 40px;
+  margin: 0 auto;
+  transition: all 0.3s ease;
+}
+
+.avatar-mouth.speaking {
+  animation: talking 0.4s infinite;
+}
+
+@keyframes talking {
+  0%, 100% {
+    height: 20px;
+    border-radius: 0 0 40px 40px;
+  }
+  50% {
+    height: 30px;
+    border-radius: 40px;
+  }
+}
+
+.avatar-mouth.smiling {
+  border-radius: 0 0 50px 50px;
+  height: 25px;
+}
+
+.avatar-mouth.sad {
+  border-radius: 50px 50px 0 0;
+  border-top: 3px solid #c97a5c;
+  border-bottom: none;
+  height: 15px;
+  transform: translateY(-5px);
+}
+
+.avatar-mouth.nervous {
+  width: 35px;
+  height: 5px;
+  border-radius: 3px;
+  border: none;
+  background: #c97a5c;
+}
+
+/* Cuerpo */
+.avatar-body {
+  width: 120px;
+  height: 100px;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  border-radius: 10px 10px 50px 50px;
+  position: relative;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* Indicadores de Estado */
+.avatar-status {
+  width: 100%;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.emotion-indicator {
+  background: #f8f9fa;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--secondary-color);
+  margin-bottom: 0.75rem;
+}
+
+.emotion-indicator .label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.emotion-indicator #emotion-text {
+  display: block;
+  color: var(--primary-color);
+  font-size: 1rem;
+  margin-top: 0.25rem;
+}
+
+.speaking-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--success-color);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.speaking-indicator .pulse {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: pulse-dot 1s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+}
+
+/* Emociones del Avatar */
+.avatar-head.emotion-neutral {
+  background: linear-gradient(135deg, #ffd6a5 0%, #ffb88c 100%);
+}
+
+.avatar-head.emotion-uncomfortable {
+  background: linear-gradient(135deg, #ffb8a5 0%, #ff9c8c 100%);
+}
+
+.avatar-head.emotion-defensive {
+  background: linear-gradient(135deg, #ffa5a5 0%, #ff8c8c 100%);
+}
+
+.avatar-head.emotion-thoughtful {
+  background: linear-gradient(135deg, #d6e5ff 0%, #b8d4ff 100%);
+}
+
+.avatar-head.emotion-anxious {
+  animation: subtle-shake 0.3s infinite;
+}
+
+@keyframes subtle-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+}
+
+/* Animaciones de expresión */
+.avatar-visual.expressing {
+  animation: express 0.5s ease;
+}
+
+@keyframes express {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}

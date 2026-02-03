@@ -1,0 +1,62 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.sqlite
+*.db
+
+# Docker
+.dockerignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+
+# Modelos de IA (muy grandes)
+ai-engine/models/*
+!ai-engine/models/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Temporales
+tmp/
+temp/
+*.tmp
+
+# Respaldos
+*.bak
+*.backup
+
+# Datos sensibles
+*.key
+*.pem
+*.crt
+secrets/
