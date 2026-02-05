@@ -39,18 +39,21 @@
         <!-- Panel Izquierdo: Avatar del Paciente -->
         <div class="avatar-panel">
           <div id="patient-avatar" class="avatar-container">
-            <!-- Avatar visual del paciente -->
-            <div class="avatar-visual">
-              <div class="avatar-head">
-                <div class="avatar-face">
-                  <div class="avatar-eyes">
-                    <div class="eye left"></div>
-                    <div class="eye right"></div>
-                  </div>
-                  <div class="avatar-mouth" id="avatar-mouth"></div>
-                </div>
-              </div>
-              <div class="avatar-body"></div>
+            <!-- Avatar de video realista -->
+            <div class="avatar-video-wrapper">
+              <video 
+                id="avatar-video" 
+                class="avatar-video"
+                loop
+                muted
+                playsinline
+                autoplay
+              >
+                <source src="assets/coverr-temp-irx5gen-3-alpha-3810106825-steady-cam-talking-60c14a1a-9f9b-4c95-8-mp4-7682-1080p.mp4" type="video/mp4">
+                <source src="assets/istockphoto-1152822473-640_adpp_is.mp4" type="video/mp4">
+                Tu navegador no soporta video HTML5.
+              </video>
+              <div class="avatar-overlay" id="avatar-overlay"></div>
             </div>
             
             <!-- Indicadores de estado -->

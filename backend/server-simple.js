@@ -119,49 +119,101 @@ app.post('/api/sesiones/:session_id/mensajes', (req, res) => {
   res.status(201).json(mensaje);
 });
 
-// Generar respuesta IA
-app.post('/api/ia/generar-respuesta', (req, res) => {
+// Generar respuesta IA con Ollama
+app.post('/api/ia/generar-respuesta', async (req, res) => {
   const { session_id, pregunta_estudiante, caso_id } = req.body;
   
-  // Respuestas simuladas
-  const respuestasSimuladas = [
-    "No sé… me cuesta hablar de eso.",
-    "Puede ser, pero no creo que sea tan grave.",
-    "No lo había pensado así.",
-    "Prefiero no hablar de ese tema ahora.",
-    "No sé por qué me pongo así cuando me preguntan eso.",
-    "Supongo que siempre fui un poco nerviosa.",
-    "No creo que tenga que ver con mi trabajo… aunque no sé.",
-    "Mmm... (pausa) ¿por qué me pregunta eso?",
-    "Últimamente todo me cuesta más.",
-    "No es algo que me guste recordar."
-  ];
-  
-  const detectarEmocion = (pregunta) => {
-    const texto = pregunta.toLowerCase();
-    if (texto.includes('familia') || texto.includes('infancia')) {
-      return ['incomodidad', 'evasión'];
+  try {
+    // Obtener información del caso
+    const caso = casosClinicos.find(c => c.id === parseInt(caso_id));
+    if (!caso) {
+      return res.status(404).json({ error: 'Caso clínico no encontrado' });
     }
-    if (texto.includes('trabajo')) {
-      return ['tensión', 'defensividad'];
+    
+    // Obtener historial de mensajes
+    const mensajes = mensajesMemoria.get(session_id) || [];
+    const historial = mensajes.slice(-6).map(m => 
+      `${m.rol === 'estudiante' ? 'Terapeuta' : 'Paciente'}: ${m.contenido}`
+    ).join('\n');
+    
+    // Construir el prompt para Ollama
+    const prompt = `${caso.contexto_sistema}
+
+INFORMACIÓN DEL PACIENTE:
+- Nombre: ${caso.nombre}
+- Edad: ${caso.edad}
+- Ocupación: ${caso.ocupacion}
+- Motivo de consulta: ${caso.motivo_consulta}
+- Historia: ${caso.historia}
+- Estado emocional: ${caso.estado_emocional}
+- Personalidad: ${caso.personalidad}
+
+${historial ? `CONVERSACIÓN PREVIA:\n${historial}\n` : ''}
+Terapeuta: ${pregunta_estudiante}
+Paciente:`;
+
+    // Llamar a Ollama
+    const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama3.1:8b',
+        prompt: prompt,
+        stream: false,
+        options: {
+          temperature: 0.8,
+          top_p: 0.9,
+          max_tokens: 200
+        }
+      })
+    });
+    
+    if (!ollamaResponse.ok) {
+      throw new Error('Error en Ollama');
     }
-    if (texto.includes('siente') || texto.includes('emociones')) {
-      return ['reflexión', 'vulnerabilidad'];
-    }
-    return ['neutral'];
-  };
-  
-  const respuesta = {
-    texto: respuestasSimuladas[Math.floor(Math.random() * respuestasSimuladas.length)],
-    confianza: 0.85,
-    emociones: detectarEmocion(pregunta_estudiante),
-    metadata: {
-      modo: 'simulado',
-      modelo: 'pendiente'
-    }
-  };
-  
-  res.json(respuesta);
+    
+    const data = await ollamaResponse.json();
+    const textoRespuesta = data.response.trim();
+    
+    // Detectar emoción basada en el contenido
+    const detectarEmocion = (texto) => {
+      const lower = texto.toLowerCase();
+      if (lower.includes('no sé') || lower.includes('no estoy segur')) return ['incomodidad'];
+      if (lower.includes('...') || lower.includes('mmm')) return ['reflexión'];
+      if (lower.includes('no quiero') || lower.includes('prefiero no')) return ['evasión'];
+      if (lower.includes('me pone') || lower.includes('me molesta')) return ['tensión'];
+      return ['neutral'];
+    };
+    
+    const respuesta = {
+      texto: textoRespuesta,
+      confianza: 0.92,
+      emociones: detectarEmocion(textoRespuesta),
+      metadata: {
+        modo: 'ollama',
+        modelo: 'llama3.1:8b',
+        tokens: data.eval_count || 0
+      }
+    };
+    
+    res.json(respuesta);
+    
+  } catch (error) {
+    console.error('Error generando respuesta con Ollama:', error);
+    
+    // Fallback a respuesta simulada
+    const respuesta = {
+      texto: "Disculpe, estaba pensando... ¿puede repetir la pregunta?",
+      confianza: 0.5,
+      emociones: ['neutral'],
+      metadata: {
+        modo: 'fallback',
+        error: error.message
+      }
+    };
+    
+    res.json(respuesta);
+  }
 });
 
 // Finalizar sesión

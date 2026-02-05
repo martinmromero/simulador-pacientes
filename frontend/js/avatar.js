@@ -3,35 +3,40 @@
 const AvatarController = {
   
   elements: {
-    head: null,
-    mouth: null,
+    video: null,
+    overlay: null,
     emotionText: null,
-    speakingIndicator: null,
-    avatarVisual: null
+    speakingIndicator: null
   },
 
   currentEmotion: 'neutral',
 
   init() {
-    this.elements.head = document.querySelector('.avatar-head');
-    this.elements.mouth = document.getElementById('avatar-mouth');
+    this.elements.video = document.getElementById('avatar-video');
+    this.elements.overlay = document.getElementById('avatar-overlay');
     this.elements.emotionText = document.getElementById('emotion-text');
     this.elements.speakingIndicator = document.getElementById('speaking-indicator');
-    this.elements.avatarVisual = document.querySelector('.avatar-visual');
     
-    logger.log('Avatar controller inicializado');
+    // Configurar video
+    if (this.elements.video) {
+      this.elements.video.play().catch(err => {
+        logger.warn('Autoplay bloqueado, el usuario debe interactuar primero');
+      });
+    }
+    
+    logger.log('Avatar controller inicializado con video');
   },
 
   // Cambiar emoción del avatar
   setEmotion(emotion) {
-    if (!this.elements.head) return;
+    if (!this.elements.overlay) return;
     
     // Remover emoción anterior
-    this.elements.head.classList.remove(`emotion-${this.currentEmotion}`);
+    this.elements.overlay.classList.remove(this.currentEmotion);
     
     // Agregar nueva emoción
     this.currentEmotion = emotion;
-    this.elements.head.classList.add(`emotion-${emotion}`);
+    this.elements.overlay.classList.add(emotion);
     
     // Actualizar texto
     const emotionTexts = {
@@ -48,34 +53,13 @@ const AvatarController = {
       this.elements.emotionText.textContent = emotionTexts[emotion] || 'Neutral';
     }
     
-    // Cambiar expresión de la boca
-    this.updateMouthExpression(emotion);
-    
     logger.log('Emoción cambiada a:', emotion);
   },
 
-  // Actualizar expresión de la boca
+  // Actualizar expresión de la boca (ahora solo cambia overlay)
   updateMouthExpression(emotion) {
-    if (!this.elements.mouth) return;
-    
-    // Limpiar clases anteriores
-    this.elements.mouth.classList.remove('smiling', 'sad', 'nervous');
-    
-    // Aplicar expresión según emoción
-    switch(emotion) {
-      case 'thoughtful':
-        this.elements.mouth.classList.add('smiling');
-        break;
-      case 'sad':
-      case 'uncomfortable':
-        this.elements.mouth.classList.add('sad');
-        break;
-      case 'anxious':
-      case 'nervous':
-      case 'defensive':
-        this.elements.mouth.classList.add('nervous');
-        break;
-    }
+    // El video ya tiene expresiones, solo aplicamos overlay
+    this.setEmotion(emotion);
   },
 
   // Iniciar animación de habla
@@ -95,17 +79,24 @@ const AvatarController = {
     this.elements.mouth.classList.remove('speaking');
     this.elements.speakingIndicator.classList.add('hidden');
     
+    // Pausar video cuando no habla (opcional)
+    // if (this.elements.video) {
+    //   this.elements.video.pause();
+    // }
+    
     logger.log('Avatar dejó de hablar');
   },
 
-  // Animación de expresión (parpadeo, movimiento)
+  // Animación de expresión
   express() {
-    if (!this.elements.avatarVisual) return;
+    if (!this.elements.video) return;
     
-    this.elements.avatarVisual.classList.add('expressing');
-    setTimeout(() => {
-      this.elements.avatarVisual.classList.remove('expressing');
-    }, 500);
+    // Reproducir video si está pausado
+    if (this.elements.video.paused) {
+      this.elements.video.play().catch(err => {
+        logger.warn('No se pudo reproducir el video:', err);
+      });
+    }
   },
 
   // Establecer emoción basada en respuesta de IA
