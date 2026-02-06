@@ -1,8 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database');
+const axios = require('axios');
 
-// Respuestas simuladas (temporal, hasta tener IA)
+// Configuración de Ollama desde variables de entorno
+const OLLAMA_HOST = process.env.OLLAMA_HOST || '192.168.12.236';
+const OLLAMA_PORT = process.env.OLLAMA_PORT || '11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama2';
+const OLLAMA_URL = `http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/generate`;
+
+const AI_TEMPERATURE = parseFloat(process.env.AI_TEMPERATURE) || 0.7;
+const AI_MAX_TOKENS = parseInt(process.env.AI_MAX_TOKENS) || 150;
+const AI_TOP_P = parseFloat(process.env.AI_TOP_P) || 0.9;
+
+console.log(`[IA] Configurado para usar Ollama en ${OLLAMA_HOST}:${OLLAMA_PORT} con modelo ${OLLAMA_MODEL}`);
+
+// Respuestas simuladas (fallback si Ollama no responde)
 const respuestasSimuladas = [
   "No sé… me cuesta hablar de eso.",
   "Puede ser, pero no creo que sea tan grave.",
@@ -15,6 +28,46 @@ const respuestasSimuladas = [
   "Últimamente todo me cuesta más.",
   "No es algo que me guste recordar."
 ];
+
+// Función para llamar a Ollama
+async function llamarOllama(prompt) {
+  try {
+    const response = await axios.post(
+      OLLAMA_URL,
+      {
+        model: OLLAMA_MODEL,
+        prompt: prompt,
+        stream: false,
+        options: {
+          temperature: AI_TEMPERATURE,
+          num_predict: AI_MAX_TOKENS,
+          top_p: AI_TOP_P,
+          stop: ["\nTerapeuta:", "\nEstudiante:", "\n\n"]
+        }
+      },
+      {
+        timeout: 30000, // 30 segundos timeout
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return {
+      texto: response.data.response.trim(),
+      confianza: 0.9,
+      metadata: {
+        modo: 'ollama',
+        modelo: OLLAMA_MODEL,
+        tokens: response.data.eval_count || 0,
+        tiempo_ms: response.data.total_duration ? Math.round(response.data.total_duration / 1000000) : 0
+      }
+    };
+  } catch (error) {
+    console.error('[IA] Error llamando a Ollama:', error.message);
+    throw error;
+  }
+}
 
 // Generar respuesta del paciente
 router.post('/generar-respuesta', async (req, res) => {
@@ -46,23 +99,32 @@ router.post('/generar-respuesta', async (req, res) => {
       pregunta_estudiante
     );
     
-    // 4. AQUÍ SE LLAMARÁ A LA IA REAL
-    // const respuesta = await llamarIALocal(prompt);
-    
-    // Por ahora: respuesta simulada
-    const respuesta = {
-      texto: respuestasSimuladas[Math.floor(Math.random() * respuestasSimuladas.length)],
-      confianza: 0.85,
-      emociones: detectarEmocion(pregunta_estudiante),
-      metadata: {
-        modo: 'simulado',
-        prompt_tokens: prompt.length,
-        modelo: 'pendiente'
-      }
-    };
-    
-    // 5. Registrar en logs para análisis
-    console.log(`[IA] Session: ${session_id} | Prompt: ${prompt.substring(0, 100)}...`);
+    // 4. Llamar a Ollama
+    let respuesta;
+    try {
+      const startTime = Date.now();
+      respuesta = await llamarOllama(prompt);
+      const endTime = Date.now();
+      
+      respuesta.emociones = detectarEmocion(pregunta_estudiante);
+      respuesta.metadata.tiempo_total_ms = endTime - startTime;
+      
+      console.log(`[IA] Session: ${session_id} | Modelo: ${OLLAMA_MODEL} | Tiempo: ${respuesta.metadata.tiempo_total_ms}ms`);
+      
+    } catch (ollamaError) {
+      // Fallback a respuestas simuladas si Ollama falla
+      console.warn('[IA] Ollama no disponible, usando respuestas simuladas');
+      respuesta = {
+        texto: respuestasSimuladas[Math.floor(Math.random() * respuestasSimuladas.length)],
+        confianza: 0.5,
+        emociones: detectarEmocion(pregunta_estudiante),
+        metadata: {
+          modo: 'simulado_fallback',
+          error: ollamaError.message,
+          modelo: 'ninguno'
+        }
+      };
+    }
     
     res.json(respuesta);
     
@@ -111,6 +173,31 @@ function detectarEmocion(pregunta) {
   
   return ['neutral'];
 }
+
+// Endpoint para verificar conexión con Ollama
+router.get('/health', async (req, res) => {
+  try {
+    const response = await axios.get(`http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/tags`, {
+      timeout: 5000
+    });
+    
+    res.json({
+      status: 'ok',
+      ollama_conectado: true,
+      ollama_url: `${OLLAMA_HOST}:${OLLAMA_PORT}`,
+      modelo_configurado: OLLAMA_MODEL,
+      modelos_disponibles: response.data.models || []
+    });
+  } catch (error) {
+    res.json({
+      status: 'warning',
+      ollama_conectado: false,
+      ollama_url: `${OLLAMA_HOST}:${OLLAMA_PORT}`,
+      error: error.message,
+      mensaje: 'Usando respuestas simuladas como fallback'
+    });
+  }
+});
 
 // Endpoint para futuro: conectar con motor de IA propio
 router.post('/configurar-modelo', async (req, res) => {

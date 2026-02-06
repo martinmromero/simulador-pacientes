@@ -4,9 +4,30 @@ const cors = require('cors');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configuración de Ollama (dinámica)
+let OLLAMA_CONFIG = {
+  HOST: process.env.OLLAMA_HOST || '192.168.12.236',
+  PORT: process.env.OLLAMA_PORT || '11434',
+  MODEL: process.env.OLLAMA_MODEL || 'llama3.1:8b',
+  TEMPERATURE: parseFloat(process.env.AI_TEMPERATURE) || 0.7,
+  MAX_TOKENS: parseInt(process.env.AI_MAX_TOKENS) || 150,
+  TOP_P: parseFloat(process.env.AI_TOP_P) || 0.9
+};
+
+function getOllamaURL() {
+  return `http://${OLLAMA_CONFIG.HOST}:${OLLAMA_CONFIG.PORT}/api/generate`;
+}
+
+function getOllamaTagsURL() {
+  return `http://${OLLAMA_CONFIG.HOST}:${OLLAMA_CONFIG.PORT}/api/tags`;
+}
+
+console.log(`[IA] Configurado para usar Ollama en ${OLLAMA_CONFIG.HOST}:${OLLAMA_CONFIG.PORT} con modelo ${OLLAMA_CONFIG.MODEL}`);
 
 // Almacenamiento en memoria (temporal, sin base de datos)
 const casosClinicos = require('./data/casos-memoria');
@@ -153,27 +174,23 @@ Terapeuta: ${pregunta_estudiante}
 Paciente:`;
 
     // Llamar a Ollama
-    const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3.1:8b',
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.8,
-          top_p: 0.9,
-          max_tokens: 200
-        }
-      })
+    const startTime = Date.now();
+    const ollamaResponse = await axios.post(getOllamaURL(), {
+      model: OLLAMA_CONFIG.MODEL,
+      prompt: prompt,
+      stream: false,
+      options: {
+        temperature: OLLAMA_CONFIG.TEMPERATURE,
+        num_predict: OLLAMA_CONFIG.MAX_TOKENS,
+        top_p: OLLAMA_CONFIG.TOP_P,
+        stop: ["\nTerapeuta:", "\nEstudiante:", "\n\n"]
+      }
+    }, {
+      timeout: 30000
     });
     
-    if (!ollamaResponse.ok) {
-      throw new Error('Error en Ollama');
-    }
-    
-    const data = await ollamaResponse.json();
-    const textoRespuesta = data.response.trim();
+    const endTime = Date.now();
+    const textoRespuesta = ollamaResponse.data.response.trim();
     
     // Detectar emoción basada en el contenido
     const detectarEmocion = (texto) => {
@@ -191,28 +208,113 @@ Paciente:`;
       emociones: detectarEmocion(textoRespuesta),
       metadata: {
         modo: 'ollama',
-        modelo: 'llama3.1:8b',
-        tokens: data.eval_count || 0
+        modelo: OLLAMA_CONFIG.MODEL,
+        tokens: ollamaResponse.data.eval_count || 0,
+        tiempo_ms: endTime - startTime,
+        servidor: `${OLLAMA_CONFIG.HOST}:${OLLAMA_CONFIG.PORT}`
       }
     };
+    
+    console.log(`[IA] Session: ${session_id} | Modelo: ${OLLAMA_CONFIG.MODEL} | Tiempo: ${endTime - startTime}ms`);
     
     res.json(respuesta);
     
   } catch (error) {
-    console.error('Error generando respuesta con Ollama:', error);
+    console.error('[IA] Error generando respuesta con Ollama:', error.message);
     
-    // Fallback a respuesta simulada
+    // Fallback a respuestas simuladas más variadas
+    const respuestasFallback = [
+      "No sé… me cuesta hablar de eso.",
+      "Puede ser, pero no creo que sea tan grave.",
+      "No lo había pensado así.",
+      "Prefiero no hablar de ese tema ahora.",
+      "Mmm... (pausa) ¿por qué me pregunta eso?",
+      "Últimamente todo me cuesta más."
+    ];
+    
     const respuesta = {
-      texto: "Disculpe, estaba pensando... ¿puede repetir la pregunta?",
+      texto: respuestasFallback[Math.floor(Math.random() * respuestasFallback.length)],
       confianza: 0.5,
       emociones: ['neutral'],
       metadata: {
         modo: 'fallback',
-        error: error.message
+        error: error.message,
+        mensaje: 'Ollama no disponible, usando respuestas simuladas'
       }
     };
     
     res.json(respuesta);
+  }
+});
+
+// Health check para verificar conexión con Ollama
+app.get('/api/ia/health', async (req, res) => {
+  try {
+    const response = await axios.get(getOllamaTagsURL(), {
+      timeout: 5000
+    });
+    
+    res.json({
+      status: 'ok',
+      ollama_conectado: true,
+      ollama_url: `${OLLAMA_CONFIG.HOST}:${OLLAMA_CONFIG.PORT}`,
+      modelo_configurado: OLLAMA_CONFIG.MODEL,
+      modelos_disponibles: response.data.models || []
+    });
+  } catch (error) {
+    res.json({
+      status: 'warning',
+      ollama_conectado: false,
+      ollama_url: `${OLLAMA_CONFIG.HOST}:${OLLAMA_CONFIG.PORT}`,
+      error: error.message,
+      mensaje: 'Usando respuestas simuladas como fallback'
+    });
+  }
+});
+
+// Configurar servidor Ollama dinámicamente
+app.post('/api/ia/configurar-servidor', async (req, res) => {
+  try {
+    const { serverType, config } = req.body;
+    
+    console.log(`[IA] Cambiando configuración a servidor: ${serverType}`);
+    
+    // Actualizar configuración
+    OLLAMA_CONFIG.HOST = config.host;
+    OLLAMA_CONFIG.PORT = config.port;
+    
+    console.log(`[IA] Nueva configuración: ${OLLAMA_CONFIG.HOST}:${OLLAMA_CONFIG.PORT}`);
+    
+    // Verificar conectividad
+    try {
+      await axios.get(getOllamaTagsURL(), { timeout: 5000 });
+      res.json({
+        success: true,
+        mensaje: `Servidor cambiado a ${serverType}`,
+        config: {
+          host: OLLAMA_CONFIG.HOST,
+          port: OLLAMA_CONFIG.PORT,
+          modelo: OLLAMA_CONFIG.MODEL
+        }
+      });
+    } catch (error) {
+      res.json({
+        success: true,
+        warning: `Servidor configurado pero no se pudo verificar conectividad: ${error.message}`,
+        config: {
+          host: OLLAMA_CONFIG.HOST,
+          port: OLLAMA_CONFIG.PORT,
+          modelo: OLLAMA_CONFIG.MODEL
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('[IA] Error configurando servidor:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

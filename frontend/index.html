@@ -11,7 +11,24 @@
   <!-- Header -->
   <header class="header">
     <div class="container">
+      <!-- Panel de Configuración IA (Izquierda) -->
+      <div class="ia-config-panel">
+        <div class="ia-status">
+          <div class="status-indicator" id="ia-status-indicator">
+            <span class="status-dot" id="status-dot"></span>
+            <span class="status-text" id="status-text">Verificando...</span>
+          </div>
+        </div>
+        <div class="ia-server-select">
+          <select id="ollama-server" class="server-dropdown">
+            <option value="servidor">Servidor Intranet</option>
+            <option value="local">Notebook Local</option>
+          </select>
+        </div>
+      </div>
+      
       <h1>🏥 Simulador de Pacientes Virtuales</h1>
+      
       <div class="user-info">
         <span id="username">Estudiante</span>
         <button id="logout-btn" class="btn-secondary">Salir</button>
@@ -192,6 +209,7 @@
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/avatar.js"></script>
+  <script src="js/ia-config.js"></script>
   <script src="js/speech.js"></script>
   <script src="js/session.js"></script>
   <script src="js/app.js"></script>

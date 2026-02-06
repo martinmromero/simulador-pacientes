@@ -23,7 +23,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Cargar casos clínicos disponibles
 async function loadCases() {
   try {
+    logger.log('Iniciando carga de casos...');
+    logger.log('API_URL:', CONFIG.API_URL);
     const cases = await API.getCases();
+    logger.log('Casos recibidos:', cases);
     renderCases(cases);
   } catch (error) {
     logger.error('Error cargando casos:', error);
