@@ -165,7 +165,10 @@ window.sendMessage = async function() {
     // Hablar respuesta si está habilitado
     const audioToggle = document.getElementById('audio-response-toggle');
     if (audioToggle && audioToggle.checked) {
-      SpeechController.speak(response.texto);
+      // Pasar género del paciente si está disponible
+      const caso = SessionManager.currentCase;
+      const gender = caso ? caso.genero || SpeechController.detectGenderFromName(caso.nombre) : null;
+      SpeechController.speak(response.texto, null, null, gender);
     }
 
     input.disabled = false;

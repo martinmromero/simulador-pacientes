@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS casos_clinicos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     edad INTEGER NOT NULL,
+    genero VARCHAR(20) CHECK (genero IN ('masculino', 'femenino', 'otro', NULL)),
     estado_civil VARCHAR(50),
     ocupacion VARCHAR(100),
     motivo_consulta TEXT NOT NULL,
@@ -99,11 +100,12 @@ EXECUTE FUNCTION update_updated_at_column();
 
 -- Insertar caso clínico de ejemplo (Laura)
 INSERT INTO casos_clinicos (
-    nombre, edad, estado_civil, ocupacion, motivo_consulta,
+    nombre, edad, genero, estado_civil, ocupacion, motivo_consulta,
     historia, estado_emocional, personalidad, contexto_sistema, dificultad
 ) VALUES (
     'Laura',
     32,
+    'femenino',
     'convive con su pareja',
     'administrativa',
     'No estoy durmiendo bien, estoy cansada todo el tiempo.',
@@ -132,12 +134,13 @@ ESTILO:
 
 -- Insertar más casos de ejemplo
 INSERT INTO casos_clinicos (
-    nombre, edad, estado_civil, ocupacion, motivo_consulta,
+    nombre, edad, genero, estado_civil, ocupacion, motivo_consulta,
     historia, estado_emocional, personalidad, contexto_sistema, dificultad
 ) VALUES 
 (
     'Carlos',
     45,
+    'masculino',
     'divorciado',
     'contador',
     'Mi ex dice que los chicos no quieren verme, pero no es verdad.',
@@ -150,6 +153,7 @@ INSERT INTO casos_clinicos (
 (
     'María',
     19,
+    'femenino',
     'soltera',
     'estudiante universitaria',
     'Creo que algo malo me va a pasar todo el tiempo.',
@@ -162,6 +166,7 @@ INSERT INTO casos_clinicos (
 (
     'Roberto',
     58,
+    'masculino',
     'casado',
     'gerente jubilado',
     'Desde que dejé de trabajar me siento vacío, inútil.',

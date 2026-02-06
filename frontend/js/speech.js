@@ -28,7 +28,7 @@ const SpeechController = {
   },
 
   // Hablar texto (TTS)
-  speak(text, onStart = null, onEnd = null) {
+  speak(text, onStart = null, onEnd = null, gender = null) {
     if (!this.synthesis || !this.audioEnabled) {
       logger.log('Audio deshabilitado o no disponible');
       if (onEnd) onEnd();
@@ -44,14 +44,15 @@ const SpeechController = {
     utterance.pitch = CONFIG.AUDIO.pitch;
     utterance.volume = CONFIG.AUDIO.volume;
 
-    // Seleccionar voz en español si está disponible
+    // Seleccionar voz apropiada según género y región
     const voices = this.synthesis.getVoices();
-    const spanishVoice = voices.find(voice => 
-      voice.lang.startsWith('es') && voice.name.includes('Female')
-    ) || voices.find(voice => voice.lang.startsWith('es'));
+    const selectedVoice = this.selectVoice(voices, gender);
     
-    if (spanishVoice) {
-      utterance.voice = spanishVoice;
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      logger.log('Voz seleccionada:', selectedVoice.name, 'Lang:', selectedVoice.lang);
+    } else {
+      logger.warn('No se encontró voz apropiada, usando voz por defecto');
     }
 
     // Callbacks
@@ -74,6 +75,113 @@ const SpeechController = {
     };
 
     this.synthesis.speak(utterance);
+  },
+
+  // Seleccionar voz apropiada según género
+  selectVoice(voices, gender) {
+    // Si no se especifica género, intentar detectar desde el caso actual
+    if (!gender && window.currentCase) {
+      gender = this.detectGenderFromName(window.currentCase.nombre);
+    }
+
+    const isFemale = gender === 'femenino' || gender === 'female' || gender === 'f';
+    const isMale = gender === 'masculino' || gender === 'male' || gender === 'm';
+
+    // Prioridad de búsqueda:
+    // 1. Español Latinoamericano (es-MX, es-AR, es-CO, es-US) del género correcto
+    // 2. Cualquier español latinoamericano del género correcto
+    // 3. Español de España del género correcto
+    // 4. Cualquier español del género correcto
+    // 5. Cualquier español
+
+    const latinAmericanLocales = ['es-MX', 'es-AR', 'es-CO', 'es-CL', 'es-PE', 'es-US'];
+    
+    // Filtrar voces en español
+    const spanishVoices = voices.filter(v => v.lang.startsWith('es'));
+    
+    if (spanishVoices.length === 0) {
+      logger.warn('No hay voces en español disponibles');
+      return null;
+    }
+
+    // Intentar encontrar voz latinoamericana del género correcto
+    if (isFemale || isMale) {
+      const genderMatch = isFemale ? 
+        (name) => name.toLowerCase().includes('female') || name.toLowerCase().includes('woman') || name.toLowerCase().includes('femenina') || name.toLowerCase().includes('mujer') :
+        (name) => name.toLowerCase().includes('male') || name.toLowerCase().includes('man') || name.toLowerCase().includes('masculina') || name.toLowerCase().includes('hombre');
+      
+      // 1. Español latinoamericano del género correcto
+      for (const locale of latinAmericanLocales) {
+        const voice = spanishVoices.find(v => v.lang === locale && genderMatch(v.name));
+        if (voice) return voice;
+      }
+      
+      // 2. Cualquier español latinoamericano del género correcto (locale contiene guión pero no es ES)
+      const latinVoice = spanishVoices.find(v => 
+        v.lang !== 'es-ES' && v.lang.includes('-') && genderMatch(v.name)
+      );
+      if (latinVoice) return latinVoice;
+      
+      // 3. Español de España del género correcto
+      const spainVoice = spanishVoices.find(v => v.lang === 'es-ES' && genderMatch(v.name));
+      if (spainVoice) return spainVoice;
+      
+      // 4. Cualquier español del género correcto
+      const anyGenderVoice = spanishVoices.find(v => genderMatch(v.name));
+      if (anyGenderVoice) return anyGenderVoice;
+    }
+
+    // 5. Fallback: cualquier voz latinoamericana
+    for (const locale of latinAmericanLocales) {
+      const voice = spanishVoices.find(v => v.lang === locale);
+      if (voice) return voice;
+    }
+    
+    // 6. Fallback final: cualquier voz en español
+    return spanishVoices[0];
+  },
+
+  // Detectar género basado en el nombre
+  detectGenderFromName(nombre) {
+    if (!nombre) return null;
+    
+    const nombreLower = nombre.toLowerCase().trim();
+    
+    // Nombres femeninos comunes
+    const femaleNames = [
+      'laura', 'maría', 'ana', 'carmen', 'isabel', 'elena', 'marta', 'patricia',
+      'sofia', 'lucía', 'valentina', 'camila', 'paula', 'andrea', 'daniela',
+      'gabriela', 'Carolina', 'natalia', 'claudia', 'alejandra', 'victoria',
+      'fernanda', 'mariana', 'silvia', 'rosa', 'julia', 'beatriz', 'teresa'
+    ];
+    
+    // Nombres masculinos comunes
+    const maleNames = [
+      'carlos', 'juan', 'josé', 'luis', 'miguel', 'pedro', 'jorge', 'roberto',
+      'fernando', 'david', 'javier', 'manuel', 'francisco', 'antonio', 'daniel',
+      'rafael', 'andrés', 'alberto', 'ricardo', 'pablo', 'diego', 'alejandro',
+      'sergio', 'eduardo', 'mario', 'raúl', 'gabriel', 'martín'
+    ];
+    
+    if (femaleNames.some(name => nombreLower.includes(name))) {
+      return 'femenino';
+    }
+    
+    if (maleNames.some(name => nombreLower.includes(name))) {
+      return 'masculino';
+    }
+    
+    // Si termina en 'a', probablemente femenino (en español)
+    if (nombreLower.endsWith('a')) {
+      return 'femenino';
+    }
+    
+    // Si termina en 'o', probablemente masculino
+    if (nombreLower.endsWith('o')) {
+      return 'masculino';
+    }
+    
+    return null; // No se pudo determinar
   },
 
   // Detener habla
@@ -164,9 +272,31 @@ const SpeechController = {
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = () => {
     const voices = window.speechSynthesis.getVoices();
-    logger.log('Voces disponibles:', voices.length);
-    voices.filter(v => v.lang.startsWith('es')).forEach(v => {
-      logger.log('- Voz española:', v.name, v.lang);
-    });
+    logger.log('📢 Voces disponibles:', voices.length);
+    
+    const spanishVoices = voices.filter(v => v.lang.startsWith('es'));
+    logger.log(`🇪🇸 Voces en español: ${spanishVoices.length}`);
+    
+    // Agrupar por tipo
+    const latinVoices = spanishVoices.filter(v => v.lang !== 'es-ES' && v.lang.includes('-'));
+    const spainVoices = spanishVoices.filter(v => v.lang === 'es-ES');
+    
+    if (latinVoices.length > 0) {
+      logger.log('🌎 Voces Latinoamericanas:');
+      latinVoices.forEach(v => {
+        const gender = v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('woman') ? '♀️' : 
+                      v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man') ? '♂️' : '⚪';
+        logger.log(`  ${gender} ${v.name} (${v.lang})`);
+      });
+    }
+    
+    if (spainVoices.length > 0) {
+      logger.log('🇪🇸 Voces de España:');
+      spainVoices.forEach(v => {
+        const gender = v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('woman') ? '♀️' : 
+                      v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man') ? '♂️' : '⚪';
+        logger.log(`  ${gender} ${v.name} (${v.lang})`);
+      });
+    }
   };
 }

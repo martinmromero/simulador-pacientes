@@ -6,7 +6,7 @@ const axios = require('axios');
 // Configuración de Ollama desde variables de entorno
 const OLLAMA_HOST = process.env.OLLAMA_HOST || '192.168.12.236';
 const OLLAMA_PORT = process.env.OLLAMA_PORT || '11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama2';
+let OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b'; // Ahora es variable
 const OLLAMA_URL = `http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/generate`;
 
 const AI_TEMPERATURE = parseFloat(process.env.AI_TEMPERATURE) || 0.7;
@@ -199,13 +199,72 @@ router.get('/health', async (req, res) => {
   }
 });
 
-// Endpoint para futuro: conectar con motor de IA propio
+// Endpoint para obtener lista de modelos disponibles
+router.get('/modelos-disponibles', async (req, res) => {
+  try {
+    const response = await axios.get(`http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/tags`, {
+      timeout: 5000
+    });
+    
+    const modelos = response.data.models?.map(m => ({
+      name: m.name,
+      size: m.size,
+      modified_at: m.modified_at
+    })) || [];
+    
+    res.json({
+      modelos: modelos,
+      modelo_actual: OLLAMA_MODEL
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'No se pudo obtener la lista de modelos',
+      mensaje: error.message
+    });
+  }
+});
+
+// Endpoint para configurar el modelo de IA
 router.post('/configurar-modelo', async (req, res) => {
-  // Para cuando implementen su propio LLM
-  res.json({ 
-    mensaje: 'Endpoint preparado para configurar modelo de IA local',
-    estado: 'no implementado aún'
-  });
+  try {
+    const { model } = req.body;
+    
+    if (!model) {
+      return res.status(400).json({ error: 'Se requiere especificar el modelo' });
+    }
+    
+    // Actualizar el modelo actual
+    OLLAMA_MODEL = model;
+    
+    console.log(`[IA] Modelo cambiado a: ${OLLAMA_MODEL}`);
+    
+    // Verificar que el modelo esté disponible en Ollama
+    try {
+      const response = await axios.get(`http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/tags`, {
+        timeout: 5000
+      });
+      
+      const modelExists = response.data.models?.some(m => m.name.includes(model));
+      
+      res.json({ 
+        mensaje: `Modelo configurado: ${OLLAMA_MODEL}`,
+        modelo_actual: OLLAMA_MODEL,
+        modelo_disponible: modelExists,
+        advertencia: modelExists ? null : 'El modelo no está disponible en el servidor Ollama. Se usará cuando esté instalado.'
+      });
+    } catch (error) {
+      // Si no podemos verificar, asumimos que está bien
+      res.json({ 
+        mensaje: `Modelo configurado: ${OLLAMA_MODEL}`,
+        modelo_actual: OLLAMA_MODEL,
+        advertencia: 'No se pudo verificar disponibilidad del modelo'
+      });
+    }
+    
+  } catch (error) {
+    console.error('[IA] Error configurando modelo:', error);
+    res.status(500).json({ error: 'Error al configurar modelo' });
+  }
 });
 
 module.exports = router;

@@ -16,13 +16,26 @@ const IAConfigController = {
         this.changeServer(e.target.value);
       });
     }
+    
+    const modelSelect = document.getElementById('ai-model');
+    if (modelSelect) {
+      modelSelect.addEventListener('change', (e) => {
+        this.changeModel(e.target.value);
+      });
+    }
   },
   
   loadSavedConfig() {
-    const saved = CONFIG.OLLAMA.currentServer;
+    const savedServer = CONFIG.OLLAMA.currentServer;
     const serverSelect = document.getElementById('ollama-server');
     if (serverSelect) {
-      serverSelect.value = saved;
+      serverSelect.value = savedServer;
+    }
+    
+    const savedModel = CONFIG.OLLAMA.currentModel;
+    const modelSelect = document.getElementById('ai-model');
+    if (modelSelect) {
+      modelSelect.value = savedModel;
     }
   },
   
@@ -53,6 +66,34 @@ const IAConfigController = {
     } catch (error) {
       logger.error('Error cambiando servidor:', error);
       this.updateStatus('disconnected', 'Error al cambiar servidor');
+    }
+  },
+  
+  async changeModel(modelType) {
+    logger.log('Cambiando modelo IA a:', modelType);
+    
+    // Guardar preferencia
+    CONFIG.OLLAMA.currentModel = modelType;
+    localStorage.setItem('ai-model', modelType);
+    
+    // Notificar al backend
+    try {
+      await fetch(`${CONFIG.API_URL}/ia/configurar-modelo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: modelType
+        })
+      });
+      
+      // Verificar estado inmediatamente
+      await this.checkStatus();
+      
+      logger.log('Modelo cambiado exitosamente a:', modelType);
+    } catch (error) {
+      logger.error('Error cambiando modelo:', error);
     }
   },
   
